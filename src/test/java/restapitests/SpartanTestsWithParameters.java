@@ -1,12 +1,13 @@
 package restapitests;
-
-import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import org.junit.*;
+import java.util.HashMap;
+import java.util.Map;
 
 import static io.restassured.RestAssured.*;
 import static io.restassured.RestAssured.get;
+import static org.junit.Assert.*;
 
 public class SpartanTestsWithParameters{
 	@BeforeClass
@@ -29,17 +30,17 @@ And body should be "Hello from Sparta"
 		Response response = get("/hello/");
 		
 		//response
-		Assert.assertEquals(200,response.statusCode());
+		assertEquals(200,response.statusCode());
 		//verify headers
-		Assert.assertEquals("text/plain;charset=UTF-8",response.contentType());
+		assertEquals("text/plain;charset=UTF-8",response.contentType());
 		//verify date
 		System.out.println(response.getHeader("Date"));
 		//this give you the headers and check if that header is there
-		Assert.assertTrue(response.headers().hasHeaderWithName("Date"));
+		assertTrue(response.headers().hasHeaderWithName("Date"));
 		
-		Assert.assertEquals("17",response.getHeader("Content-Length"));//header response is always String
-		Assert.assertEquals("Hello from Sparta",response.asString());
-		Assert.assertEquals("Hello from Sparta",response.body().asString());//ORRRRRR
+		assertEquals("17",response.getHeader("Content-Length"));//header response is always String
+		assertEquals("Hello from Sparta",response.asString());
+		assertEquals("Hello from Sparta",response.body().asString());//ORRRRRR
 	}
 	
 	
@@ -65,10 +66,109 @@ And "Blythe" should be in response payload
 			           .and().pathParam("id",5)
 			           .and().when().get("spartans/{id}");
 	response.prettyPrint();
-	Assert.assertEquals(200,response.statusCode());
-	Assert.assertEquals("application/json;charset=UTF-8",response.contentType());
-	Assert.assertTrue(response.body().asString().contains("Blythe"));
+	assertEquals(200,response.statusCode());
+	assertEquals("application/json;charset=UTF-8",response.contentType());
+	assertTrue(response.body().asString().contains("Blythe"));
 	
 	}
+	
+	/*
+Given accept type is Json
+And Id parameter value is 500
+When user sends GET request to /api/spartans/{id}
+Then response status code should be 404
+And response content-type: application/json;charset=UTF-8
+And Spartan Not Found" message should be in response payload
+	 */
+	
+	@Test
+	public void getSpartanByID_Negative_Path_parameter_test() {
+		//request part
+		
+		Response response = given().accept(ContentType.JSON)
+				.and().pathParam("id", 500)
+				.and().when().get("spartans/{id}");
+		
+		//response part
+		response.prettyPrint();
+		assertEquals(404, response.statusCode());
+		assertEquals("application/json;charset=UTF-8", response.contentType());
+		assertTrue(response.body().asString().contains("Spartan Not Found"));
+	}
+	
+	/*
+	Given accept type is Json
+And query parameter values are :
+    gender|Female
+    nameContains|e
+When user sends GET request to /api/spartans/search
+Then response status code should be 200
+And response content-type: application/json;charset=UTF-8
+And "Female" should be in response payload
+And "Janette" should be in response payload
+	 */
+	@Test
+	public void queryParameters(){
+		//all 3 responses are the same
+		Response response =given().accept(ContentType.JSON)
+				.and().queryParam("gender","Female")
+				.and().queryParam("nameContains","e")
+				.when().get("/spartans/search");
+		Response response1 =given().accept(ContentType.JSON)
+				.and().queryParams("gender","Female","nameContains","e")
+				.when().get("/spartans/search");
+		Response response2 = given().accept(ContentType.JSON).when().get("/spartans/search?gender=Female&nameContains=e");
+		
+		assertEquals(200,response.statusCode());
+		assertEquals(200,response1.statusCode());
+		assertEquals(200,response2.statusCode());
+		
+		assertEquals("application/json;charset=UTF-8",response.contentType());
+		assertEquals("application/json;charset=UTF-8",response1.contentType());
+		assertEquals("application/json;charset=UTF-8",response2.contentType());
+		
+		assertTrue(response.body().asString().contains("Female"));
+		assertTrue(response1.body().asString().contains("Female"));
+		assertTrue(response2.body().asString().contains("Female"));
+		
+		assertTrue(response.body().asString().contains("Janette"));
+		assertTrue(response1.body().asString().contains("Janette"));
+		assertTrue(response2.body().asString().contains("Janette"));
+		
+	}
+	/*
+	Given accept type is Xml
+	And query parameter values are :
+	gender|Female
+	nameContains|e
+	When user sends GET request to /api/spartans/search
+	Then response status code should be 406
+	And "Could not find acceptable representation" should be in response payload
+   */
+	
+	@Test
+	public void negativeTest1(){
+		Response response = given().accept(ContentType.XML)
+				.and().queryParams("gender","Female","nameContains","e").when().get("/spartans/search");
+		
+		Map<String , Object> paramsMap = new HashMap<>();
+		paramsMap.put("gender","Female");
+		paramsMap.put("nameContains","e");
+		
+		Response response1 = given().accept(ContentType.XML).and().queryParams(paramsMap).when().get("/spartans/search");
+		
+		
+		assertEquals(406,response.statusCode());
+		assertEquals(406,response1.statusCode());
+		assertTrue(response.body().asString().contains("Could not find acceptable representation"));
+		assertFalse(!response1.body().asString().contains("Could not find acceptable representation"));
+	}
+	
+	
+	@Test
+	public void warmup(){
+		Response response = given().accept(ContentType.JSON).pathParam("country","US").when().get("/{country}");
+	}
+	
 	
 }
